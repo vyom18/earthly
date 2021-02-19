@@ -268,13 +268,35 @@ func (i *Interpreter) handleRun(ctx context.Context, cmd spec.Command) error {
 			return Errorf(cmd.SourceLocation, "secrets need to be implemented for the LOCALLY directive")
 		}
 
-		if i.withDocker != nil {
-			return fmt.Errorf("WITH docker not currently supported under a LOCALLY target")
+		if i.withDocker == nil {
+			fmt.Printf("calling RunLocal %v\n", fs.Args())
+			err = i.converter.RunLocal(ctx, fs.Args(), *pushFlag)
+			if err != nil {
+				return WrapError(err, cmd.SourceLocation, "apply RUN")
+			}
+			return nil
 		}
 
-		err = i.converter.RunLocal(ctx, fs.Args(), *pushFlag)
+		// handle WITH DOCKER under locally target
+		if *pushFlag {
+			return Errorf(cmd.SourceLocation, "RUN --push not allowed in WITH DOCKER")
+		}
+		if i.withDockerRan {
+			return Errorf(cmd.SourceLocation, "only one RUN command allowed in WITH DOCKER")
+		}
+		i.withDockerRan = true
+
+		// TODO are any of these required?
+		//i.withDocker.Mounts = mounts.Args
+		//i.withDocker.Secrets = secrets.Args
+		//i.withDocker.WithShell = withShell
+		//i.withDocker.WithEntrypoint = *withEntrypoint
+		//i.withDocker.NoCache = *noCache
+
+		fmt.Printf("calling WithDockerRunLocally %v\n", fs.Args())
+		err = i.converter.WithDockerRunLocally(ctx, fs.Args(), *i.withDocker)
 		if err != nil {
-			return WrapError(err, cmd.SourceLocation, "apply RUN")
+			return WrapError(err, cmd.SourceLocation, "with docker run")
 		}
 		return nil
 	}

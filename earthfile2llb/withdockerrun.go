@@ -350,6 +350,7 @@ func (wdr *withDockerRun) solveImage(ctx context.Context, mts *states.MultiTarge
 		llb.Platform(llbutil.DefaultPlatform()),
 		llb.WithCustomNamef("[internal] docker tar context %s %s", opName, sessionID),
 	)
+	fmt.Printf("adding to tarloads %v\n", tarContext)
 	wdr.tarLoads = append(wdr.tarLoads, tarContext)
 	wdr.c.mts.Final.LocalDirs[string(solveID)] = outDir
 	wdr.c.opt.SolveCache.Set(solveID, tarContext)

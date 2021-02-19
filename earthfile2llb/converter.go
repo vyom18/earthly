@@ -661,6 +661,14 @@ func (c *Converter) WithDockerRun(ctx context.Context, args []string, opt WithDo
 	return wdr.Run(ctx, args, opt)
 }
 
+// WithDockerRunLocally is a hack
+func (c *Converter) WithDockerRunLocally(ctx context.Context, args []string, opt WithDockerOpt) error {
+	wldr := &withLocalDockerRun{
+		c: c,
+	}
+	return wldr.Run(ctx, args, opt)
+}
+
 // Healthcheck applies the HEALTHCHECK command.
 func (c *Converter) Healthcheck(ctx context.Context, isNone bool, cmdArgs []string, interval time.Duration, timeout time.Duration, startPeriod time.Duration, retries int) {
 	c.nonSaveCommand()

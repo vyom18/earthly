@@ -57,16 +57,28 @@ test-save-unnamed-artifact-dir2:
     COPY --dir +save-unnamed-artifact/earthly-test-c5009c71-d573-4562-be15-2c28dae333fc /var/log/.
     RUN cat /var/log/earthly-test-c5009c71-d573-4562-be15-2c28dae333fc/c.txt | grep '^ccc$'
 
+# BEFORE supporting copying containers to localhost, I need to support copying files.
+mydatacontainer:
+    FROM busybox:1.32.1
+    RUN busybox > /data
+    SAVE ARTIFACT /data the-data
+
+test-locally-can-copy:
+    LOCALLY
+    COPY +mydatacontainer/the-data /tmp/4eb5dcb7-2245-4f35-ab41-252f78e7a451
+    RUN cat /tmp/4eb5dcb7-2245-4f35-ab41-252f78e7a451 | grep "BusyBox v1.32.1"
+
+# Once the above works, then we can leverage it to copy a docker tar into a tmp dir, then load it. to make the following work:
 mycontainer:
     FROM busybox:latest
     CMD echo hello world
 
 test-mycontainer-locally:
     LOCALLY
-    RUN docker rm mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744 || true
+    #RUN docker rm mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744 || true
     WITH DOCKER \
             --load mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744:latest=+mycontainer
-        RUN docker run --rm mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744 | grep "hello world"
+        RUN docker run --rm mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744:latest | grep "hello world"
     END
 
 all:
