@@ -68,18 +68,31 @@ test-locally-can-copy:
     COPY +mydatacontainer/the-data /tmp/4eb5dcb7-2245-4f35-ab41-252f78e7a451
     RUN cat /tmp/4eb5dcb7-2245-4f35-ab41-252f78e7a451 | grep "BusyBox v1.32.1"
 
-# Once the above works, then we can leverage it to copy a docker tar into a tmp dir, then load it. to make the following work:
-mycontainer:
-    FROM busybox:latest
-    CMD echo hello world
+mydatacontainerwithdir:
+    FROM busybox:1.32.1
+    RUN mkdir /data-dir
+    RUN busybox > /data-dir/busybox
+    RUN hostname > /data-dir/hostname
+    SAVE ARTIFACT /data the-data
 
-test-mycontainer-locally:
+test-locally-can-copy-dir:
     LOCALLY
-    #RUN docker rm mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744 || true
-    WITH DOCKER \
-            --load mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744:latest=+mycontainer
-        RUN docker run --rm mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744:latest | grep "hello world"
-    END
+    COPY +mydatacontainerwithdir/the-data /tmp/f3fa2ae8-df5e-4b34-875d-c0919fae20d8
+    RUN cat /tmp/f3fa2ae8-df5e-4b34-875d-c0919fae20d8/busybox | grep "BusyBox v1.32.1"
+    RUN cat /tmp/f3fa2ae8-df5e-4b34-875d-c0919fae20d8/hostname | grep "buildkitcontainer"
+
+# Once the above works, then we can leverage it to copy a docker tar into a tmp dir, then load it. to make the following work:
+#mycontainer:
+#    FROM busybox:latest
+#    CMD echo hello world
+#
+#test-mycontainer-locally:
+#    LOCALLY
+#    #RUN docker rm mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744 || true
+#    WITH DOCKER \
+#            --load mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744:latest=+mycontainer
+#        RUN docker run --rm mycontainer-e3d32183-604d-4dc3-b519-f9af56ecb744:latest | grep "hello world"
+#    END
 
 all:
     BUILD +test-local
@@ -89,3 +102,4 @@ all:
     BUILD +test-save-unnamed-artifact
     BUILD +test-save-unnamed-artifact-dir
     BUILD +test-save-unnamed-artifact-dir2
+    BUILD +test-locally-can-copy

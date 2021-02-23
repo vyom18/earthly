@@ -410,6 +410,9 @@ func (i *Interpreter) handleCopy(ctx context.Context, cmd spec.Command) error {
 	if *from != "" {
 		return Errorf(cmd.SourceLocation, "COPY --from not implemented. Use COPY artifacts form instead")
 	}
+	//if i.local {
+	//	return Errorf(cmd.SourceLocation, "COPY not supported in LOCALLY targets")
+	//}
 	srcs := fs.Args()[:fs.NArg()-1]
 	dest := i.expandArgs(fs.Arg(fs.NArg()-1), false)
 	for index, ba := range buildArgs.Args {
@@ -442,9 +445,17 @@ func (i *Interpreter) handleCopy(ctx context.Context, cmd spec.Command) error {
 			dest += string(filepath.Separator)
 		}
 		for _, src := range srcs {
-			err = i.converter.CopyArtifact(ctx, src, dest, platform, buildArgs.Args, *isDirCopy, *keepTs, *keepOwn, *chown, *ifExists)
-			if err != nil {
-				return WrapError(err, cmd.SourceLocation, "copy artifact")
+			if i.local {
+				fmt.Printf("copy %q to %q\n", src, dest)
+				err = i.converter.CopyArtifactLocal(ctx, src, dest, platform, buildArgs.Args, *isDirCopy, *keepTs, *keepOwn, *chown, *ifExists)
+				if err != nil {
+					return WrapError(err, cmd.SourceLocation, "copy artifact")
+				}
+			} else {
+				err = i.converter.CopyArtifact(ctx, src, dest, platform, buildArgs.Args, *isDirCopy, *keepTs, *keepOwn, *chown, *ifExists)
+				if err != nil {
+					return WrapError(err, cmd.SourceLocation, "copy artifact")
+				}
 			}
 		}
 	} else {

@@ -271,6 +271,39 @@ func (c *Converter) Locally(ctx context.Context, platform *specs.Platform) error
 }
 
 // CopyArtifact applies the earthly COPY artifact command.
+func (c *Converter) CopyArtifactLocal(ctx context.Context, artifactName string, dest string, platform *specs.Platform, buildArgs []string, isDir bool, keepTs bool, keepOwn bool, chown string, ifExists bool) error {
+	fmt.Printf("entered CopyArtifactLocal( %q, %q )\n", artifactName, dest)
+
+	c.nonSaveCommand()
+	artifact, err := domain.ParseArtifact(artifactName)
+	if err != nil {
+		return errors.Wrapf(err, "parse artifact name %s", artifactName)
+	}
+	mts, err := c.buildTarget(ctx, artifact.Target.String(), platform, buildArgs, false)
+	if err != nil {
+		return errors.Wrapf(err, "apply build %s", artifact.Target.String())
+	}
+	if artifact.Target.IsLocalInternal() {
+		// TODO why is this needed here?
+		artifact.Target.LocalPath = c.mts.Final.Target.LocalPath
+	}
+	// Grab the artifacts state in the dep states, after we've built it.
+	relevantDepState := mts.Final
+
+	fmt.Printf("CopyArtifactLocal %q %q\n", artifactName, dest)
+	finalArgs := append([]string{localhost.SendFileMagicStr}, artifact.Artifact, dest)
+	opts := []llb.RunOption{
+		llb.Args(finalArgs),
+		llb.IgnoreCache,
+		llb.AddMount("/"+localhost.SendFileMagicStr, relevantDepState.ArtifactsState),
+		//llb.WithCustomNamef("TODO COPY HACK", c.vertexPrefix(true), runStr),
+	}
+
+	c.mts.Final.MainState = c.mts.Final.MainState.Run(opts...).Root()
+	return nil
+}
+
+// CopyArtifact applies the earthly COPY artifact command.
 func (c *Converter) CopyArtifact(ctx context.Context, artifactName string, dest string, platform *specs.Platform, buildArgs []string, isDir bool, keepTs bool, keepOwn bool, chown string, ifExists bool) error {
 	c.nonSaveCommand()
 	artifact, err := domain.ParseArtifact(artifactName)
