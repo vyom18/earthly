@@ -18,8 +18,6 @@ import (
 	"strings"
 	"time"
 
-	"github.com/opencontainers/go-digest"
-
 	"github.com/earthly/earthly/buildcontext"
 	"github.com/earthly/earthly/debugger/common"
 	"github.com/earthly/earthly/domain"
@@ -31,12 +29,14 @@ import (
 	"github.com/earthly/earthly/variables"
 
 	"github.com/alessio/shellescape"
+	"github.com/cenkalti/backoff/v4"
 	"github.com/docker/distribution/reference"
 	"github.com/moby/buildkit/client/llb"
 	"github.com/moby/buildkit/frontend/dockerfile/dockerfile2llb"
 	gwclient "github.com/moby/buildkit/frontend/gateway/client"
 	"github.com/moby/buildkit/session/localhost"
 	solverpb "github.com/moby/buildkit/solver/pb"
+	"github.com/opencontainers/go-digest"
 	specs "github.com/opencontainers/image-spec/specs-go/v1"
 	"github.com/pkg/errors"
 )
@@ -1297,11 +1297,11 @@ func (c *Converter) internalFromClassical(ctx context.Context, imageName string,
 		dt   []byte
 	)
 
-	err = doWithRetries(
-		func(try int) error {
-			logName := fmt.Sprintf(
-				"%sLoad metadata %s, try %v",
-				c.imageVertexPrefix(imageName), llbutil.PlatformToString(&platform), try)
+	logName := fmt.Sprintf(
+		"%sLoad metadata %s",
+		c.imageVertexPrefix(imageName), llbutil.PlatformToString(&platform))
+	err = backoff.Retry(
+		func() error {
 			dgst, dt, err = c.opt.MetaResolver.ResolveImageConfig(
 				ctx, baseImageName,
 				llb.ResolveImageConfigOpt{
@@ -1311,16 +1311,7 @@ func (c *Converter) internalFromClassical(ctx context.Context, imageName string,
 				})
 			return err
 		},
-		func(err error) bool {
-			retry := err != nil
-
-			if retry {
-				fmt.Println("**** Metadata retry!")
-			}
-
-			return retry
-		},
-		5,
+		backoff.NewExponentialBackOff(),
 	)
 	if err != nil {
 		return llb.State{}, nil, nil, errors.Wrapf(err, "resolve image config for %s", imageName)
