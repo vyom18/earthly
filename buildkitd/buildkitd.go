@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/url"
 	"os"
 	"os/exec"
 	"runtime"
@@ -34,7 +35,7 @@ var (
 )
 
 // Address is the address at which the daemon is available.
-var Address = fmt.Sprintf("docker-container://%s", ContainerName)
+var Address = fmt.Sprintf("tcp://127.0.0.1:8372")
 
 // TODO: Implement all this properly with the docker client.
 
@@ -53,6 +54,16 @@ func NewClient(ctx context.Context, console conslogging.ConsoleLogger, image str
 		return nil, errors.Wrap(err, "new buildkit client")
 	}
 	return bkClient, nil
+}
+
+func IsLocal(addr string) bool {
+	u, err := url.Parse(addr)
+	if err != nil {
+		return false
+	}
+
+	// note that we do not check for localhost, nor anything that may resolve to this IP.
+	return u.Hostname() == "127.0.0.1"
 }
 
 // ResetCache restarts the buildkitd daemon with the reset command.
@@ -111,7 +122,7 @@ func MaybeStart(ctx context.Context, console conslogging.ConsoleLogger, image st
 		if err != nil {
 			return "", errors.Wrap(err, "start")
 		}
-		err = WaitUntilStarted(ctx, console, Address, opTimeout)
+		err = WaitUntilStarted(ctx, console, settings.BuildkitAddress, opTimeout)
 		if err != nil {
 			return "", errors.Wrap(err, "wait until started")
 		}
@@ -119,7 +130,7 @@ func MaybeStart(ctx context.Context, console conslogging.ConsoleLogger, image st
 			WithPrefix("buildkitd").
 			Printf("...Done\n")
 	}
-	return Address, nil
+	return settings.BuildkitAddress, nil
 }
 
 // MaybeRestart checks whether the there is a different buildkitd image available locally or if
@@ -237,11 +248,17 @@ func Start(ctx context.Context, console conslogging.ConsoleLogger, image string,
 		// Add /sys/fs/cgroup if it's earthly-in-earthly.
 		args = append(args, "-v", "/sys/fs/cgroup:/sys/fs/cgroup")
 	} else {
+		u, err := url.Parse(settings.BuildkitAddress)
+		if err != nil {
+			return errors.Wrap(err, "invalid remote buildkit")
+		}
+		args = append(args, "-p", fmt.Sprintf("127.0.0.1:%v:8372", u.Port()))
+		args = append(args, "-e", "EARTHLY_BUILDKIT_HOST=tcp://0.0.0.0:8372")
+
 		// Debugger only supported in top-most earthly.
 		// TODO: Main reason for this is port clash. This could be improved in the future,
 		//       if needed.
-		args = append(args,
-			"-p", fmt.Sprintf("127.0.0.1:%d:8373", settings.DebuggerPort))
+		args = append(args, "-p", fmt.Sprintf("127.0.0.1:%d:8373", settings.DebuggerPort))
 	}
 
 	if supportsPlatform(ctx) {

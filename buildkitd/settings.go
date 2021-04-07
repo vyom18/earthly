@@ -13,6 +13,7 @@ type Settings struct {
 	CacheSizeMb      int
 	GitURLInsteadOf  string
 	Debug            bool
+	BuildkitAddress  string
 	DebuggerPort     int
 	AdditionalArgs   []string `hash:"set"`
 	AdditionalConfig string

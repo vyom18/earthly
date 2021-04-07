@@ -411,6 +411,7 @@ func newEarthlyApp(ctx context.Context, console conslogging.ConsoleLogger) *eart
 		&cli.StringFlag{
 			Name:        "buildkit-host",
 			EnvVars:     []string{"EARTHLY_BUILDKIT_HOST"},
+			Value:       buildkitd.Address,
 			Usage:       wrap("The URL to use for connecting to a buildkit host. ", "If empty, earthly will attempt to start a buildkitd instance via docker run"),
 			Destination: &app.buildkitHost,
 		},
@@ -926,7 +927,12 @@ func (app *earthlyApp) before(context *cli.Context) error {
 		app.buildkitdImage = app.cfg.Global.BuildkitImage
 	}
 
+	if !context.IsSet("buildkit-host") && app.cfg.Global.BuildkitAddress != "" {
+		app.buildkitHost = app.cfg.Global.BuildkitAddress
+	}
+
 	app.buildkitdSettings.DebuggerPort = app.cfg.Global.DebuggerPort
+	app.buildkitdSettings.BuildkitAddress = app.buildkitHost
 	app.buildkitdSettings.AdditionalArgs = app.cfg.Global.BuildkitAdditionalArgs
 	app.buildkitdSettings.AdditionalConfig = app.cfg.Global.BuildkitAdditionalConfig
 
@@ -2104,8 +2110,8 @@ func (app *earthlyApp) actionPrune(c *cli.Context) error {
 	}
 	if app.pruneReset {
 		// Prune by resetting container.
-		if app.buildkitHost != "" {
-			return errors.New("Cannot use prune --reset on non-default buildkit-host setting")
+		if !buildkitd.IsLocal(app.buildkitHost) {
+			return errors.New("Cannot use prune --reset on non-local buildkit-host setting")
 		}
 		// Use twice the restart timeout for reset operations
 		// (needs extra time to also remove the files).
@@ -2490,7 +2496,7 @@ func (app *earthlyApp) actionBuildImp(c *cli.Context, flagArgs, nonFlagArgs []st
 }
 
 func (app *earthlyApp) newBuildkitdClient(ctx context.Context, opts ...client.ClientOpt) (*client.Client, string, error) {
-	if app.buildkitHost == "" {
+	if buildkitd.IsLocal(app.buildkitHost) {
 		// Start our own.
 		app.buildkitdSettings.Debug = app.debug
 		opTimeout := time.Duration(app.cfg.Global.BuildkitRestartTimeoutS) * time.Second
