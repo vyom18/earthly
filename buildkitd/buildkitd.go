@@ -41,6 +41,20 @@ var Address = fmt.Sprintf("tcp://127.0.0.1:8372")
 
 // NewClient returns a new buildkitd client.
 func NewClient(ctx context.Context, console conslogging.ConsoleLogger, image string, settings Settings, opTimeout time.Duration, opts ...client.ClientOpt) (*client.Client, error) {
+	if !IsLocal(settings.BuildkitAddress) {
+		err := waitForConnection(ctx, settings.BuildkitAddress, opTimeout)
+		if err != nil {
+			return nil, errors.Wrap(err, "connect remote buildkit")
+		}
+
+		bkClient, err := client.New(ctx, settings.BuildkitAddress, opts...)
+		if err != nil {
+			return nil, errors.Wrap(err, "new buildkit client")
+		}
+
+		return bkClient, nil
+	}
+
 	if !isDockerAvailable(ctx) {
 		console.WithPrefix("buildkitd").Printf("Is docker installed and running? Are you part of the docker group?\n")
 		return nil, errors.New("docker not available")
@@ -378,7 +392,7 @@ func waitForConnection(ctx context.Context, address string, opTimeout time.Durat
 			if err != nil {
 				return err
 			}
-			if !isRunning {
+			if !isRunning && IsLocal(address) {
 				return ErrBuildkitCrashed
 			}
 			err = checkConnection(ctxTimeout, address)
