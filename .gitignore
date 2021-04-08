@@ -6,3 +6,4 @@
 .env
 .vscode
 .tmp-earthly-out*
+.idea
