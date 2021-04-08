@@ -2503,7 +2503,15 @@ func (app *earthlyApp) newBuildkitdClient(ctx context.Context, opts ...client.Cl
 		return nil, "", errors.Wrap(err, "buildkitd new client (provided)")
 	}
 
-	return bkClient, "", nil
+	var bkIP string
+	if buildkitd.IsLocal(app.buildkitHost) {
+		bkIP, err = buildkitd.GetContainerIP(ctx)
+		if err != nil {
+			return nil, "", err
+		}
+	}
+
+	return bkClient, bkIP, nil
 
 	//if buildkitd.IsLocal(app.buildkitHost) {
 	//	// Start our own.
