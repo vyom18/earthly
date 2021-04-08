@@ -2512,28 +2512,6 @@ func (app *earthlyApp) newBuildkitdClient(ctx context.Context, opts ...client.Cl
 	}
 
 	return bkClient, bkIP, nil
-
-	//if buildkitd.IsLocal(app.buildkitHost) {
-	//	// Start our own.
-	//	app.buildkitdSettings.Debug = app.debug
-	//	opTimeout := time.Duration(app.cfg.Global.BuildkitRestartTimeoutS) * time.Second
-	//	bkClient, err := buildkitd.NewClient(ctx, app.console, app.buildkitdImage, app.buildkitdSettings, opTimeout)
-	//	if err != nil {
-	//		return nil, "", errors.Wrap(err, "buildkitd new client (own)")
-	//	}
-	//	bkIP, err := buildkitd.GetContainerIP(ctx)
-	//	if err != nil {
-	//		return nil, "", errors.Wrap(err, "get container ip")
-	//	}
-	//	return bkClient, bkIP, nil
-	//}
-	//
-	//// Use provided.
-	//bkClient, err := client.New(ctx, app.buildkitHost, opts...)
-	//if err != nil {
-	//	return nil, "", errors.Wrap(err, "buildkitd new client (provided)")
-	//}
-	//return bkClient, "", nil
 }
 
 func (app *earthlyApp) hasSSHKeys() bool {
