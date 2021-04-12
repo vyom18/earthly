@@ -1382,9 +1382,9 @@ func (app *earthlyApp) actionBootstrap(c *cli.Context) error {
 
 	if !app.bootstrapNoBuildkit {
 		// Bootstrap buildkit - pulls image and starts daemon.
-		bkClient, _, err := app.newBuildkitdClient(c.Context)
+		bkClient, err := buildkitd.NewClient(c.Context, app.console, app.buildkitdImage, app.buildkitdSettings)
 		if err != nil {
-			return errors.Wrap(err, "buildkitd new client")
+			return errors.Wrap(err, "bootstrap new buildkitd client")
 		}
 		defer bkClient.Close()
 	}
@@ -2122,9 +2122,9 @@ func (app *earthlyApp) actionPrune(c *cli.Context) error {
 	}
 
 	// Prune via API.
-	bkClient, _, err := app.newBuildkitdClient(c.Context)
+	bkClient, err := buildkitd.NewClient(c.Context, app.console, app.buildkitdImage, app.buildkitdSettings)
 	if err != nil {
-		return errors.Wrap(err, "buildkitd new client")
+		return errors.Wrap(err, "bootstrap new buildkitd client")
 	}
 	defer bkClient.Close()
 	var opts []client.PruneOption
@@ -2310,11 +2310,19 @@ func (app *earthlyApp) actionBuildImp(c *cli.Context, flagArgs, nonFlagArgs []st
 			return errors.Wrapf(err, "parse target name %s", targetName)
 		}
 	}
-	bkClient, bkIP, err := app.newBuildkitdClient(c.Context)
+	bkClient, err := buildkitd.NewClient(c.Context, app.console, app.buildkitdImage, app.buildkitdSettings)
 	if err != nil {
-		return errors.Wrap(err, "buildkitd new client")
+		return errors.Wrap(err, "bootstrap new buildkitd client")
 	}
 	defer bkClient.Close()
+
+	var bkIP string
+	if buildkitd.IsLocal(app.buildkitHost) {
+		bkIP, err = buildkitd.GetContainerIP(c.Context)
+		if err != nil {
+			return errors.Wrap(err, "get buildkit container IP")
+		}
+	}
 
 	platformsSlice := make([]*specs.Platform, 0, len(app.platformsStr.Value()))
 	for _, p := range app.platformsStr.Value() {
@@ -2489,23 +2497,6 @@ func (app *earthlyApp) actionBuildImp(c *cli.Context, flagArgs, nonFlagArgs []st
 		return errors.Wrap(err, "build target")
 	}
 	return nil
-}
-
-func (app *earthlyApp) newBuildkitdClient(ctx context.Context, opts ...client.ClientOpt) (*client.Client, string, error) {
-	bkClient, err := buildkitd.NewClient(ctx, app.console, app.buildkitdImage, app.buildkitdSettings)
-	if err != nil {
-		return nil, "", errors.Wrap(err, "buildkitd new client (provided)")
-	}
-
-	var bkIP string
-	if buildkitd.IsLocal(app.buildkitHost) {
-		bkIP, err = buildkitd.GetContainerIP(ctx)
-		if err != nil {
-			return nil, "", err
-		}
-	}
-
-	return bkClient, bkIP, nil
 }
 
 func (app *earthlyApp) hasSSHKeys() bool {
