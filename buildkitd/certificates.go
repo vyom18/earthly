@@ -7,6 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"fmt"
+	"math"
 	"math/big"
 	"net"
 	"os"
@@ -24,8 +25,8 @@ type CertificateData struct {
 }
 
 const (
-	server = "server"
-	client = "client"
+	server  = "server"
+	earthly = "earthly"
 )
 
 func GenerateCertificates(dir string) error {
@@ -39,9 +40,9 @@ func GenerateCertificates(dir string) error {
 		return errors.Wrap(err, "create server certificate")
 	}
 
-	err = createAndSaveCertificate(ca, client, dir)
+	err = createAndSaveCertificate(ca, earthly, dir)
 	if err != nil {
-		return errors.Wrap(err, "create client certificate")
+		return errors.Wrap(err, "create earthly certificate")
 	}
 
 	return nil
@@ -57,8 +58,13 @@ func createAndSaveCertificate(ca *CertificateData, role, dir string) error {
 		return errors.Wrapf(err, "generate %s key", role)
 	}
 
+	serial, err := rand.Int(rand.Reader, big.NewInt(math.MaxInt64))
+	if err != nil {
+		return errors.Wrapf(err, "generate %s serial", role)
+	}
+
 	cert := &x509.Certificate{
-		SerialNumber: big.NewInt(1658),
+		SerialNumber: serial,
 		Subject: pkix.Name{
 			Organization: []string{fmt.Sprintf("Earthly Buildkit GRPC %v", role)},
 		},
