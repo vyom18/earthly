@@ -936,6 +936,7 @@ func (app *earthlyApp) before(context *cli.Context) error {
 
 	app.buildkitdSettings.DebuggerPort = app.cfg.Global.DebuggerPort
 	app.buildkitdSettings.BuildkitAddress = app.buildkitHost
+	app.buildkitdSettings.Timeout = time.Duration(app.cfg.Global.BuildkitRestartTimeoutS) * time.Second
 	app.buildkitdSettings.AdditionalArgs = app.cfg.Global.BuildkitAdditionalArgs
 	app.buildkitdSettings.AdditionalConfig = app.cfg.Global.BuildkitAdditionalConfig
 
@@ -2113,12 +2114,7 @@ func (app *earthlyApp) actionPrune(c *cli.Context) error {
 		if !buildkitd.IsLocal(app.buildkitHost) {
 			return errors.New("Cannot use prune --reset on non-local buildkit-host setting")
 		}
-		// Use twice the restart timeout for reset operations
-		// (needs extra time to also remove the files).
-		opTimeout := 2 * time.Duration(app.cfg.Global.BuildkitRestartTimeoutS) * time.Second
-		err := buildkitd.ResetCache(
-			c.Context, app.console, app.buildkitdImage, app.buildkitdSettings,
-			opTimeout)
+		err := buildkitd.ResetCache(c.Context, app.console, app.buildkitdImage, app.buildkitdSettings)
 		if err != nil {
 			return errors.Wrap(err, "reset cache")
 		}
@@ -2496,9 +2492,7 @@ func (app *earthlyApp) actionBuildImp(c *cli.Context, flagArgs, nonFlagArgs []st
 }
 
 func (app *earthlyApp) newBuildkitdClient(ctx context.Context, opts ...client.ClientOpt) (*client.Client, string, error) {
-	opTimeout := time.Duration(app.cfg.Global.BuildkitRestartTimeoutS) * time.Second
-
-	bkClient, err := buildkitd.NewClient(ctx, app.console, app.buildkitdImage, app.buildkitdSettings, opTimeout)
+	bkClient, err := buildkitd.NewClient(ctx, app.console, app.buildkitdImage, app.buildkitdSettings)
 	if err != nil {
 		return nil, "", errors.Wrap(err, "buildkitd new client (provided)")
 	}
