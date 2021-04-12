@@ -70,7 +70,10 @@ import (
 	"github.com/earthly/earthly/variables"
 )
 
-var dotEnvPath = ".env"
+const (
+	earthlyConfigDir = ".earthly"
+	dotEnvPath       = ".env"
+)
 
 type earthlyApp struct {
 	cliApp      *cli.App
@@ -1025,16 +1028,7 @@ func (app *earthlyApp) autoComplete() {
 	err := app.autoCompleteImp()
 	if err != nil {
 		errToLog := err
-		homeDir, err := os.UserHomeDir()
-		if err != nil {
-			os.Exit(1)
-		}
-		logDir := filepath.Join(homeDir, ".earthly")
-		logFile := filepath.Join(logDir, "autocomplete.log")
-		err = os.MkdirAll(logDir, 0755)
-		if err != nil {
-			os.Exit(1)
-		}
+		logFile := filepath.Join(getConfigDir(), "autocomplete.log")
 		f, err := os.OpenFile(logFile, os.O_APPEND|os.O_CREATE|os.O_WRONLY, 0755)
 		if err != nil {
 			os.Exit(1)
@@ -1377,6 +1371,12 @@ func (app *earthlyApp) actionBootstrap(c *cli.Context) error {
 	err = app.insertZSHCompleteEntry()
 	if err != nil {
 		return err
+	}
+
+	certsDir := filepath.Join(getConfigDir(), "certs")
+	err = buildkitd.GenerateCertificates(certsDir)
+	if err != nil {
+		return errors.Wrap(err, "setup TLS")
 	}
 
 	if !app.bootstrapNoBuildkit {
@@ -2618,15 +2618,28 @@ func processSecrets(secrets, secretFiles []string, dotEnvMap map[string]string) 
 }
 
 func defaultConfigPath() string {
-	homeDir, err := os.UserHomeDir()
-	if err != nil {
-		panic(err)
-	}
+	earthlyDir := getConfigDir()
 
-	oldConfig := filepath.Join(homeDir, ".earthly", "config.yaml")
-	newConfig := filepath.Join(homeDir, ".earthly", "config.yml")
+	oldConfig := filepath.Join(earthlyDir, "config.yaml")
+	newConfig := filepath.Join(earthlyDir, "config.yml")
 	if fileutil.FileExists(oldConfig) && !fileutil.FileExists(newConfig) {
 		return oldConfig
 	}
 	return newConfig
+}
+
+func getConfigDir() string {
+	home, err := os.UserHomeDir()
+	if err != nil {
+		panic(err)
+	}
+
+	configDir := filepath.Join(home, earthlyConfigDir)
+
+	err = os.MkdirAll(configDir, 0755)
+	if err != nil {
+		panic(err)
+	}
+
+	return configDir
 }
