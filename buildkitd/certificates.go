@@ -25,8 +25,8 @@ type CertificateData struct {
 }
 
 const (
-	server  = "server"
-	earthly = "earthly"
+	buildkit = "buildkit"
+	earthly  = "earthly"
 )
 
 func GenerateCertificates(dir string) error {
@@ -35,9 +35,9 @@ func GenerateCertificates(dir string) error {
 		return errors.Wrap(err, "create CA")
 	}
 
-	err = createAndSaveCertificate(ca, server, dir)
+	err = createAndSaveCertificate(ca, buildkit, dir)
 	if err != nil {
-		return errors.Wrap(err, "create server certificate")
+		return errors.Wrap(err, "create buildkit certificate")
 	}
 
 	err = createAndSaveCertificate(ca, earthly, dir)
@@ -66,7 +66,7 @@ func createAndSaveCertificate(ca *CertificateData, role, dir string) error {
 	cert := &x509.Certificate{
 		SerialNumber: serial,
 		Subject: pkix.Name{
-			Organization: []string{fmt.Sprintf("Earthly Buildkit GRPC %v", role)},
+			Organization: []string{fmt.Sprintf("Earthly GRPC: %v side", role)},
 		},
 		DNSNames:     []string{"localhost"},
 		IPAddresses:  []net.IP{net.IPv6loopback, net.ParseIP("127.0.0.1")},
