@@ -2110,10 +2110,6 @@ func (app *earthlyApp) actionPrune(c *cli.Context) error {
 		return errors.New("invalid arguments")
 	}
 	if app.pruneReset {
-		// Prune by resetting container.
-		if !buildkitd.IsLocal(app.buildkitHost) {
-			return errors.New("Cannot use prune --reset on non-local buildkit-host setting")
-		}
 		err := buildkitd.ResetCache(c.Context, app.console, app.buildkitdImage, app.buildkitdSettings)
 		if err != nil {
 			return errors.Wrap(err, "reset cache")
@@ -2316,12 +2312,9 @@ func (app *earthlyApp) actionBuildImp(c *cli.Context, flagArgs, nonFlagArgs []st
 	}
 	defer bkClient.Close()
 
-	var bkIP string
-	if buildkitd.IsLocal(app.buildkitHost) {
-		bkIP, err = buildkitd.GetContainerIP(c.Context)
-		if err != nil {
-			return errors.Wrap(err, "get buildkit container IP")
-		}
+	bkIP, err := buildkitd.GetContainerIP(c.Context, app.buildkitHost)
+	if err != nil {
+		return errors.Wrap(err, "get buildkit container IP")
 	}
 
 	platformsSlice := make([]*specs.Platform, 0, len(app.platformsStr.Value()))

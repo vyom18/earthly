@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net"
 	"net/url"
 	"os"
 	"os/exec"
@@ -41,7 +42,7 @@ var Address = fmt.Sprintf("tcp://127.0.0.1:8372")
 
 // NewClient returns a new buildkitd client.
 func NewClient(ctx context.Context, console conslogging.ConsoleLogger, image string, settings Settings, opts ...client.ClientOpt) (*client.Client, error) {
-	if !IsLocal(settings.BuildkitAddress) {
+	if !isLocal(settings.BuildkitAddress) {
 		myOpts := []client.ClientOpt{
 			//client.WithCredentials(
 			//	"localhost",
@@ -78,18 +79,26 @@ func NewClient(ctx context.Context, console conslogging.ConsoleLogger, image str
 	return bkClient, nil
 }
 
-func IsLocal(addr string) bool {
+func isLocal(addr string) bool {
 	u, err := url.Parse(addr)
 	if err != nil {
 		return false
 	}
 
-	// note that we do not check for localhost, nor anything that may resolve to this IP.
-	return u.Hostname() == "127.0.0.1"
+	hostname := u.Hostname()
+
+	net.IPv4zero.IsLoopback()
+	return hostname == "127.0.0.1" || // The only IP v4 Loopback we honor. Because we need to include it in the TLS certificates.
+		hostname == net.IPv6loopback.String() ||
+		hostname == "localhost" // Convention. Users hostname omitted; this is only really here for convenience.
 }
 
 // ResetCache restarts the buildkitd daemon with the reset command.
 func ResetCache(ctx context.Context, console conslogging.ConsoleLogger, image string, settings Settings) error {
+	if !isLocal(settings.BuildkitAddress) {
+		return errors.New("cannot reset or restart remote buildkit")
+	}
+
 	console.
 		WithPrefix("buildkitd").
 		Printf("Restarting buildkit daemon with reset command...\n")
@@ -397,6 +406,8 @@ ContainerRunningLoop:
 func waitForConnection(ctx context.Context, address string, opTimeout time.Duration, opt ...client.ClientOpt) error {
 	ctxTimeout, cancel := context.WithTimeout(ctx, opTimeout)
 	defer cancel()
+	isLocalBuildkit := isLocal(address)
+
 	for {
 		select {
 		case <-time.After(1 * time.Second):
@@ -405,7 +416,7 @@ func waitForConnection(ctx context.Context, address string, opTimeout time.Durat
 			if err != nil {
 				return err
 			}
-			if !isRunning && IsLocal(address) {
+			if !isRunning && isLocalBuildkit {
 				return ErrBuildkitCrashed
 			}
 			err = checkConnection(ctxTimeout, address, opt...)
@@ -501,7 +512,11 @@ func PrintLogs(ctx context.Context) error {
 }
 
 // GetContainerIP returns the IP of the buildkit container.
-func GetContainerIP(ctx context.Context) (string, error) {
+func GetContainerIP(ctx context.Context, buildkitHost string) (string, error) {
+	if !isLocal(buildkitHost) {
+		return "", nil
+	}
+
 	cmd := exec.CommandContext(ctx, "docker", "inspect", "-f", "{{range.NetworkSettings.Networks}}{{.IPAddress}}{{end}}", ContainerName)
 	output, err := cmd.CombinedOutput()
 	if err != nil {
