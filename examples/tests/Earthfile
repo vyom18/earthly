@@ -12,12 +12,13 @@ all:
 
 ga:
     BUILD ./autocompletion+test-all
-    BUILD ./scrub-https-credentials+all
-    BUILD ./with-docker+all
-    BUILD ./with-docker-compose+all
     BUILD ./dockerfile+test
     BUILD ./dockerfile2/subdir+test
+    BUILD ./scrub-https-credentials+all
+    BUILD ./submodules+test-private-git-repos
     BUILD ./version+test-all
+    BUILD ./with-docker+all
+    BUILD ./with-docker-compose+all
     BUILD +privileged-test
     BUILD +copy-test
     BUILD +copy-test-verbose-output
