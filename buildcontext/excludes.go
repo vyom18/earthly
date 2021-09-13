@@ -26,11 +26,17 @@ func readExcludes(dir string) ([]string, error) {
 
 	//earthIgnoreFile
 	var earthIgnoreFilePath = filepath.Join(dir, earthIgnoreFile)
-	earthExists := fileutil.FileExists(earthIgnoreFilePath)
+	earthExists, err := fileutil.FileExists(earthIgnoreFilePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to check if %s exists", earthIgnoreFilePath)
+	}
 
 	//earthlyIgnoreFile
 	var earthlyIgnoreFilePath = filepath.Join(dir, earthlyIgnoreFile)
-	earthlyExists := fileutil.FileExists(earthlyIgnoreFilePath)
+	earthlyExists, err := fileutil.FileExists(earthlyIgnoreFilePath)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to check if %s exists", earthlyIgnoreFilePath)
+	}
 
 	// Check which ones exists and which don't
 	if earthExists && earthlyExists {

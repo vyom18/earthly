@@ -399,7 +399,11 @@ func loadKnownHosts() (string, error) {
 
 	knownHosts := filepath.Join(homeDir, ".ssh/known_hosts")
 
-	if !fileutil.FileExists(knownHosts) {
+	knownHostsExists, err := fileutil.FileExists(knownHosts)
+	if err != nil {
+		return "", errors.Wrapf(err, "failed to check if %s exists", knownHosts)
+	}
+	if !knownHostsExists {
 		return "", nil
 	}
 
