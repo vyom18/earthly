@@ -2,7 +2,7 @@
 
 set -xeu
 
-trap 'kill $(jobs -p); wait' SIGINT SIGTERM
+trap 'kill -9 $(jobs -p); wait' SIGINT SIGTERM
 
 export EARTHLY_CONVERSION_PARALLELISM=5
 
@@ -23,6 +23,16 @@ case "$EARTHLY_OS" in
     linux)
         download_url="https://github.com/earthly/earthly/releases/latest/download/earthly-linux-amd64"
         earthly="./build/linux/amd64/earthly"
+        ;;
+
+    windows)
+        download_url="https://github.com/earthly/earthly/releases/latest/download/earthly-windows-amd64.exe"
+        earthly="./build/windows/amd64/earthly.exe"
+        ;;
+
+    *)
+        echo "unsupported EARTHLY_OS=\"$EARTHLY_OS\""
+        exit 1
         ;;
 esac
 
