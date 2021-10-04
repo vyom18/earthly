@@ -1,10 +1,10 @@
 package hello;
 
 import org.joda.time.LocalTime;
-
+import java.time.LocalTime;
 public class HelloWorld {
     public static void main(String[] args) {
-        LocalTime currentTime = new LocalTime();
-        System.out.println(currentTime + " - hello world");
+         LocalTime time = LocalTime.now();
+        System.out.println(time + " - hello world");
     }
 }
